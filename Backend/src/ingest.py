@@ -130,10 +130,6 @@ def fetch_arxiv_abs(arxiv_id: str) -> Tuple[Optional[str], Optional[str], Dict[s
 
 
 def fetch_arxiv_html_fulltext(arxiv_id: str) -> Optional[str]:
-    """
-    Try to fetch HTML version (not available for all papers).
-    We heuristically extract main text and drop nav/sidebars.
-    """
     url = f"https://arxiv.org/html/{arxiv_id}"
     try:
         r = _requests_get(url, timeout=25)
@@ -141,8 +137,6 @@ def fetch_arxiv_html_fulltext(arxiv_id: str) -> Optional[str]:
         return None
 
     soup = BeautifulSoup(r.text, "html.parser")
-
-    # arXiv HTML pages vary; often main content is inside <article> or <main>
     main = soup.find("article") or soup.find("main") or soup.body
     if not main:
         return None
@@ -151,14 +145,39 @@ def fetch_arxiv_html_fulltext(arxiv_id: str) -> Optional[str]:
     for tag in main.find_all(["script", "style", "noscript"]):
         tag.decompose()
 
+    # --- Preserve math: replace math elements with TeX if available ---
+    # arXiv HTML often uses ltx_Math / MathJax containers with TeX in attributes.
+    for m in main.find_all(class_=re.compile(r"(ltx_Math|MathJax)", re.I)):
+        tex = None
+
+        # Try common attribute locations
+        for attr in ("data-tex", "data-latex", "alt", "title"):
+            if m.has_attr(attr):
+                candidate = str(m.get(attr)).strip()
+                if candidate:
+                    tex = candidate
+                    break
+
+        # Sometimes TeX sits in <annotation encoding="application/x-tex">...</annotation>
+        if tex is None:
+            ann = m.find("annotation", attrs={"encoding": re.compile(r"x-tex|latex", re.I)})
+            if ann and ann.get_text(strip=True):
+                tex = ann.get_text(strip=True)
+
+        # Replace the math node with a TeX placeholder (keeps it in the text stream)
+        if tex:
+            m.replace_with(f" $$ {tex} $$ ")
+        else:
+            # If we can't recover TeX, at least keep a marker
+            m.replace_with(" [MATH] ")
+
     text = main.get_text("\n", strip=True)
     text = re.sub(r"\n{3,}", "\n\n", text).strip()
 
-    
     if len(text) < 2000:
         return None
-
     return text
+
 
 
 def download_arxiv_pdf(arxiv_id: str, dest_path: str) -> str:
@@ -287,3 +306,4 @@ if __name__ == "__main__":
     # python -m src.ingest  (not used by your CLI, just sanity checks)
     example = ingest(arxiv="1706.03762")
     print(json.dumps({k: (v[:300] + "..." if isinstance(v, str) and len(v) > 300 else v) for k, v in example.items()}, indent=2))
+
