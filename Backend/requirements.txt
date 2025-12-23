@@ -1,0 +1,10 @@
+transformers
+sentencepiece
+pymupdf
+beautifulsoup4
+requests
+nltk
+spacy
+scikit-learn
+evaluate
+rouge-score
