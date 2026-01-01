@@ -1,0 +1,5 @@
+This is a test paper about Natural Language Processing (NLP).
+NLP is a field of computer science and artificial intelligence.
+We want to summarize this text automatically.
+The results should be accurate and concise.
+Conclusion: The system works if this text is summarized.
