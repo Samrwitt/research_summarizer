@@ -1,14 +1,24 @@
-from .extractive import summarize_extractive
+import nltk
 
 def generate_bullet_points(summary_text, num_bullets=5):
     """
     Generate bullet points from the summary text using extractive ranking.
+    Uses NLTK for better sentence splitting.
     """
     if not summary_text:
         return []
-    
+
+    try:
+        nltk.data.find('tokenizers/punkt')
+    except LookupError:
+        nltk.download('punkt', quiet=True)
+        
     # We re-use extractive logic regarding the summary as the source text
     # This ranks sentences within the summary itself (or if summary is short, just returns them)
+    # detailed splitting
+    from .extractive import summarize_extractive
+    
+    # We pass the summary as the text to "summarize" again (extract top sentences)
     _, bullets = summarize_extractive(summary_text, num_sentences=num_bullets)
     return bullets
 
