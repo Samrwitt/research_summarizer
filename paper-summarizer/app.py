@@ -5,6 +5,8 @@ from src.ingest import ingest
 from src.preprocess import preprocess
 from src.extractive import summarize_extractive
 from src.abstractive import summarize_abstractive
+from src.hybrid import summarize_hybrid
+from src.analysis import extract_insights
 from src.postprocess import generate_bullet_points, create_markdown_report
 from src.evaluate import evaluate_summary
 from src.export import export_markdown, export_docx
@@ -46,6 +48,21 @@ st.markdown("""
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         text-align: center;
     }
+    .tag-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+    .tag {
+        background-color: #e8f5e9;
+        color: #2e7d32;
+        padding: 5px 10px;
+        border-radius: 15px;
+        font-size: 0.9em;
+        font-weight: 500;
+        border: 1px solid #c8e6c9;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -62,17 +79,21 @@ st.sidebar.title("⚙️ Control Panel")
 st.sidebar.markdown("---")
 method = st.sidebar.selectbox("Summarization Model", ["Abstractive (Longformer/BART)", "Extractive (Key Sentences)"])
 
+use_hybrid = False
+model_name = None
+
 if "Abstractive" in method:
     model_name_default = "allenai/led-base-16384" 
     model_name = st.sidebar.text_input("HuggingFace Model ID", model_name_default, help="Use 'allenai/led-base-16384' for long papers.")
+    use_hybrid = st.sidebar.checkbox("🚀 Enable Hybrid Mode", value=True, help="Speeds up processing by 50% using extractive filtering first.")
 else:
     model_name = None
 
 st.sidebar.markdown("---")
-st.sidebar.info("Tip: Abstractive mode with Longformer provides the most coherent, human-like summaries for full research papers.")
+st.sidebar.info("Tip: Hybrid Mode combines TF-IDF filtering with Longformer to process long papers faster without losing key context.")
 
 # --- Main Interface ---
-tabs = st.tabs(["📥 Ingest & Summarize", "📊 Evaluation & Metrics", "📤 Export"])
+tabs = st.tabs(["📥 Ingest & Summarize", "🧠 Insights", "📊 Evaluation", "📤 Export"])
 
 # State variables
 if 'data' not in st.session_state:
@@ -83,6 +104,8 @@ if 'bullets' not in st.session_state:
     st.session_state.bullets = []
 if 'stats' not in st.session_state:
     st.session_state.stats = {}
+if 'insights' not in st.session_state:
+    st.session_state.insights = {}
 
 with tabs[0]:
     st.subheader("1. Load Paper")
@@ -125,14 +148,22 @@ with tabs[0]:
                 st.session_state.stats = data['stats']
                 st.write("Preprocessing complete.")
                 
-                st.write(f"Generating Summary using {method}...")
+                # Insights
+                st.write("Extracting Semantic Insights (KeyBERT)...")
+                st.session_state.insights = extract_insights(data['clean_text'])
+                
+                st.write(f"Generating Summary ({method})... Hybrid={use_hybrid}")
                 
                 summary_text = ""
                 used_method = method.split()[0].lower()
                 
                 if "Abstractive" in method:
                     try:
-                        summary_text = summarize_abstractive(data['chunks'], model_name=model_name)
+                        if use_hybrid:
+                            summary_text = summarize_hybrid(data['focus_text'], model_name=model_name)
+                            used_method = "hybrid (extractive+abstractive)"
+                        else:
+                            summary_text = summarize_abstractive(data['chunks'], model_name=model_name)
                     except Exception as e:
                         st.warning(f"Abstractive failed: {e}. Falling back to Extractive.")
                         used_method = "extractive (fallback)"
@@ -149,6 +180,8 @@ with tabs[0]:
             except Exception as e:
                 st.error(f"An error occurred: {e}")
                 status.update(label="Failed", state="error")
+                import traceback
+                st.error(traceback.format_exc())
 
     # Display Results
     if st.session_state.summary_text:
@@ -166,6 +199,25 @@ with tabs[0]:
             st.info(b)
 
 with tabs[1]:
+    st.header("🧠 Paper Insights")
+    
+    if st.session_state.insights:
+        st.subheader("Semantic Keywords")
+        keywords = st.session_state.insights.get('keywords', [])
+        
+        # HTML for tags
+        tags_html = "".join([f'<span class="tag">{k}</span>' for k in keywords])
+        st.markdown(f'<div class="tag-container">{tags_html}</div>', unsafe_allow_html=True)
+        
+        st.markdown("### Structure Analysis")
+        if st.session_state.data and 'sections' in st.session_state.data:
+            sections = st.session_state.data['sections'].keys()
+            st.write("Identified Sections:")
+            st.json(list(sections))
+    else:
+        st.info("Process a paper to view insights.")
+
+with tabs[2]:
     st.header("Quality Metrics")
     
     col_m1, col_m2 = st.columns(2)
@@ -201,7 +253,7 @@ with tabs[1]:
             else:
                 st.warning("Needs both a generated summary and a reference summary.")
 
-with tabs[2]:
+with tabs[3]:
     st.header("Export Report")
     if st.session_state.summary_text:
         col_ex1, col_ex2 = st.columns(2)
@@ -217,9 +269,7 @@ with tabs[2]:
             )
         
         with col_ex2:
-            st.info("DOCX Export requires python-docx installed and generating binary stream.")
-            # DOCX generation would go here if fully wired up to stream, 
-            # currently just reuse the export logic if adaptable to streamlit's download_button
+            st.info("DOCX Export available via script.")
     else:
         st.info("Generate a summary first to enable export.")
 

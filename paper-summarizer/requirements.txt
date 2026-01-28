@@ -12,3 +12,6 @@ regex
 rouge-score
 sentencepiece
 protobuf
+keybert
+sentence-transformers
+
