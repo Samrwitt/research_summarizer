@@ -189,7 +189,14 @@ with tabs[0]:
         st.subheader(f"📝 Summary ({st.session_state.get('used_method', 'Unknown')})")
         
         st.markdown(f"""
-        <div style="background-color: white; padding: 20px; border-radius: 10px; border-left: 5px solid #4CAF50; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+        <div style="background-color: #ffffff;
+    color: #1f2937;
+    padding: 20px;
+    border-radius: 10px;
+    border-left: 5px solid #4CAF50;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+    line-height: 1.6;
+    font-size: 1rem;">
             {st.session_state.summary_text}
         </div>
         """, unsafe_allow_html=True)
