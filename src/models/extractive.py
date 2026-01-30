@@ -6,8 +6,10 @@ import re
 # Ensure nltk data
 try:
     nltk.data.find('tokenizers/punkt')
+    nltk.data.find('tokenizers/punkt_tab')
 except LookupError:
     nltk.download('punkt', quiet=True)
+    nltk.download('punkt_tab', quiet=True)
 
 def summarize_extractive(text, num_sentences=10):
     """

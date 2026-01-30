@@ -50,9 +50,10 @@ def preprocess(data):
 def _clean_text(text):
     # Normalize unicode
     # Hyphenated line breaks: "process-\ning" -> "processing"
-    text = re.sub(r'(\w+)-\s*\n\s*(\w+)', r'\1\2', text)
+    # Also handle "process- ing" which sometimes happens in PDF extraction
+    text = re.sub(r'(\w+)-\s*\n?\s*(\w+)', r'\1\2', text)
     
-    # Multiple whitespace to single space
+    # Multiple whitespace to single space (collapse newlines too as we want a stream)
     text = re.sub(r'\s+', ' ', text)
     
     # Strip Ref/Bib
