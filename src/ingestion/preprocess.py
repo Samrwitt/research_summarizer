@@ -59,15 +59,24 @@ def _clean_text(text):
     # Strip Ref/Bib
     # Simple heuristic to cut off references if clearly marked
     # Look for "References" or "Bibliography" on a new line (or after new line in original)
-    # But since we flattened newlines, we check for " References " with capitalization patterns
-    # This is risky, so be conservative.
-    # A safe bet is looking for a standalone Header-like "References" at end of doc.
-    # For now, we'll strip common tails if found.
     
-    match = re.search(r'\s(References|Bibliography|LITERATURE CITED)\s', text[-10000:], re.IGNORECASE)
+    # We look for the last occurrence of a References header in the last 20% of the text or last 10k chars.
+    # This prevents cutting "References" mentioned in the intro.
+    
+    search_area_start = max(0, len(text) - 15000)
+    search_text = text[search_area_start:]
+    
+    # Matches: newline + optional numbering + References/Bibliography + newline/colon
+    # Examples: "\nReferences\n", "\n7. Bibliography\n", "\nLITERATURE CITED"
+    # Note: \s includes newlines.
+    match = re.search(r'(?:^|\n)\s*(?:[0-9]+\.?\s*)?(?:References|Bibliography|LITERATURE CITED|Reference List)(?:\s*[:\.]?)\s*\n', search_text, re.IGNORECASE)
+    
     if match:
-        # Cut if it looks like a header (surrounded by space or uppercase)
-        pass # To implement safely needs more context. Skipping aggressive cut for now to avoid losing content.
+        # Calculate absolute cut position
+        cut_pos = search_area_start + match.start()
+        # Keep text up to that point
+        text = text[:cut_pos].strip()
+        print(f"Stripped references at char {cut_pos}")
         
     return text.strip()
 
