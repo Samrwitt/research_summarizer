@@ -70,7 +70,22 @@ def ask_llm(question, context, model_name=None):
         if response.status_code == 200:
             return response.json().get('response', 'Error: No response field')
     except Exception:
-        # Fallback to returning context if Ollama is not found
-        return f"Based on the paper:\n\n{context}"
+        # Fallback to HF QA pipeline if Ollama is offline
+        # We load a small, fast QA model (DistilBERT)
+        from transformers import pipeline
+        
+        # Load lazily to save startup time
+        if not hasattr(ask_llm, '_qa_pipeline'):
+            try:
+                print("Loading fallback QA pipeline...")
+                ask_llm._qa_pipeline = pipeline("question-answering", model="distilbert-base-cased-distilled-squad")
+            except Exception as e:
+                return f"Could not load QA model: {e}\n\nContext found:\n{context}"
+                
+        try:
+            result = ask_llm._qa_pipeline(question=question, context=context)
+            return result.get('answer', "I couldn't find the answer in the text.")
+        except Exception as e:
+            return f"QA Generation failed: {e}\n\nContext:\n{context}"
     
     return context

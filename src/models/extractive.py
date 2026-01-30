@@ -31,6 +31,22 @@ def summarize_extractive(text, num_sentences=10):
         if s_lower.startswith(('arxiv', 'doi', 'http', 'vol.', 'no.')): continue
         if 'preprint' in s_lower or 'copyright' in s_lower: continue
         
+        # Heuristic: Filter out table rows / math jumbles
+        # Count non-alpha characters (digits, symbols)
+        alpha_count = sum(c.isalpha() for c in s)
+        total_count = len(s)
+        # Require 70% letters to be considered "text". Math/tables usually have < 50%.
+        if total_count > 0 and (alpha_count / total_count) < 0.7:
+            # If less than 70% letters, it's likely a table row or math formula
+            continue
+            
+        # Count single letter words (often variables like d, k, v, h in math)
+        words = s_lower.split()
+        single_letter_words = sum(1 for w in words if len(w) == 1 and w.isalpha() and w not in ['a', 'i'])
+        # If more than 20% of words are single letters (variables), skip
+        if len(words) > 0 and (single_letter_words / len(words)) > 0.2:
+            continue
+
         # Clean for TF-IDF
         clean = re.sub(r'[^a-zA-Z\s]', '', s_lower)
         clean_sentences.append(clean)

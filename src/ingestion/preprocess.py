@@ -130,15 +130,32 @@ def _build_focus_text(sections, abstract, full_text):
     """
     Construct text optimized for summarization.
     """
-    ordered_keys = ['introduction', 'methods', 'results', 'conclusion']
+    ordered_keys = ['abstract', 'conclusion', 'results', 'methods']
+    # Introduction is often too generic. We handle it separately.
+    
     parts = []
     
+    # 1. Abstract (Highest priority)
     if abstract:
-        parts.append(f"ABSTRACT: {abstract}")
+        parts.append(f"{abstract}")
         
-    for k in ordered_keys:
-        if k in sections:
-            parts.append(f"{k.upper()}: {sections[k]}")
+    # 2. Conclusion / Discussion (High priority for takeaways)
+    if 'conclusion' in sections:
+        parts.append(f"{sections['conclusion']}")
+        
+    # 3. Results (Evidence)
+    if 'results' in sections:
+        parts.append(f"{sections['results']}")
+        
+    # 4. Methods (Context, but kept concise)
+    if 'methods' in sections:
+        # Limit methods to first 2000 chars to avoid getting bogged down in equations
+        parts.append(f"{sections['methods'][:2000]}...")
+        
+    # 5. Introduction (Context, but filtered)
+    if 'introduction' in sections:
+        # Intro often has "Background". We limit it.
+        parts.append(f"{sections['introduction'][:1000]}...")
             
     if not parts:
         # Fallback to full text if parsing failed
