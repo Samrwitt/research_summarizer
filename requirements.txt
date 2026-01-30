@@ -9,3 +9,9 @@ streamlit
 scikit-learn
 nltk
 regex
+rouge-score
+sentencepiece
+protobuf
+keybert
+sentence-transformers
+

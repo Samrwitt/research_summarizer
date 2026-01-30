@@ -1,0 +1,6 @@
+@echo off
+echo Starting Research Summarizer UI...
+echo Opening in your default browser...
+call venv\Scripts\activate.bat
+python -m streamlit run app.py
+pause
