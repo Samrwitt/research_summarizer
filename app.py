@@ -1,4 +1,5 @@
 import streamlit as st
+import nltk
 import os
 import tempfile
 import io
@@ -217,7 +218,9 @@ with tabs[0]:
     box-shadow: 0 2px 5px rgba(0,0,0,0.08);
     line-height: 1.6;
     font-size: 1rem;">
-            {st.session_state.summary_text}
+    <ul style="margin: 0; padding-left: 20px;">
+        {''.join([f'<li style="margin-bottom: 10px;">{s}</li>' for s in nltk.sent_tokenize(st.session_state.summary_text)])}
+    </ul>
         </div>
         """, unsafe_allow_html=True)
         
