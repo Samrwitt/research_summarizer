@@ -1,35 +1,29 @@
-from transformers import pipeline
+from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 import torch
 import os
 
 def summarize_abstractive(chunks, model_name="sshleifer/distilbart-cnn-12-6"):
     """
-    Summarize chunks using HuggingFace pipeline.
+    Summarize chunks using HuggingFace model directly.
     Combines chunk summaries into a final summary.
     Raises RuntimeError if model cannot be loaded (e.g. offline and not cached).
     """
-    device = 0 if torch.cuda.is_available() else -1
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Loading summarization model: {model_name} on device {device}")
     
     try:
-        # local_files_only=True if we want to strictly force offline, 
-        # but better to let it try download if online, and fail if offline.
-        # We can detect offline by catching OSError or ConnectionError from transformers.
-        summarizer = pipeline("summarization", model=model_name, device=device)
+        # Load model and tokenizer directly (more compatible than pipeline)
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+        model = model.to(device)
+        model.eval()  # Set to evaluation mode
     except Exception as e:
         raise RuntimeError(f"Failed to load abstractive model '{model_name}'. Possible offline mode without cache. Error: {e}")
 
     # Check if model is Longformer/LED based for long context support
-    is_long_context = "led" in model_name.lower() or "longformer" in model_name.lower()
+    is_long_context = "led" in model_name.lower() or "longformer" in model_name.lower() or "long-t5" in model_name.lower()
     
     print(f"Summarizing {len(chunks)} chunks... Long Context Mode: {is_long_context}")
-    
-    # If we are using LED, we might not want to chunk if the total text fits.
-    # But current ingest pipeline chunks to 3000 chars anyway.
-    # For LED, we should ideally concatenating chunks back if they are small, 
-    # but for safety/simplicity we will process chunks. 
-    # However, if we have a robust PC, we could try to increasing chunk size in preprocess, 
-    # but here we deal with what we have.
     
     chunk_summaries = []
     
@@ -39,17 +33,33 @@ def summarize_abstractive(chunks, model_name="sshleifer/distilbart-cnn-12-6"):
             
             # Dynamic params
             if is_long_context:
-                # LED can handle longer, so we can be generous
+                # LED/Long-T5 can handle longer, so we can be generous
                 max_len = 256
                 min_len = 64
+                max_input = 16384 if "led" in model_name.lower() else 16384  # Both support 16K
             else:
                 max_len = min(150, max(30, int(input_len * 0.5)))
                 min_len = min(30, max(10, int(input_len * 0.1)))
+                max_input = 1024
             
-            # Call pipeline
-            res = summarizer(chunk, max_length=max_len, min_length=min_len, do_sample=False, truncation=True)
-            text = res[0]['summary_text']
-            chunk_summaries.append(text)
+            # Tokenize input
+            inputs = tokenizer(chunk, max_length=max_input, truncation=True, return_tensors="pt")
+            inputs = inputs.to(device)
+            
+            # Generate summary
+            with torch.no_grad():
+                summary_ids = model.generate(
+                    inputs["input_ids"],
+                    max_length=max_len,
+                    min_length=min_len,
+                    num_beams=4,
+                    early_stopping=True
+                )
+            
+            # Decode
+            summary_text = tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+            chunk_summaries.append(summary_text)
+            
         except Exception as e:
             print(f"Error summarizing chunk {i}: {e}")
             continue
