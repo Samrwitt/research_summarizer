@@ -52,21 +52,33 @@ def answer_question(question, text, top_k=5):
     
     return context
 
-def ask_llm(question, context, model_name=None):
+def ask_llm(question, context, history=None, model_name=None):
     """
     Placeholder for LLM call (e.g., Ollama or a HF model).
     """
+    if history is None:
+        history = []
+        
     # If we want to use the summarizer as a generator (not great but works in a pinch)
     # or if we want to integrate Ollama:
     try:
         import requests
+        
+        # Build conversation string
+        conversation_str = ""
+        for msg in history[-6:]: # Keep last few turns
+            role = "User" if msg['role'] == "user" else "Assistant"
+            conversation_str += f"{role}: {msg['content']}\n"
+            
+        final_prompt = f"Context from paper:\n{context}\n\nChat History:\n{conversation_str}\nUser: {question}\n\nAnswer the user's question based on the context and history. Be concise."
+
         # Try local Ollama if running
         response = requests.post("http://localhost:11434/api/generate", 
                                json={
                                    "model": "llama3.2", # default suggestion
-                                   "prompt": f"Context: {context}\n\nQuestion: {question}\n\nAnswer the question based only on the context provided. If not in context, say you don't know.",
+                                   "prompt": final_prompt,
                                    "stream": False
-                               }, timeout=5)
+                               }, timeout=10)
         if response.status_code == 200:
             return response.json().get('response', 'Error: No response field')
     except Exception:

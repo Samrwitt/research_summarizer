@@ -14,24 +14,45 @@ def get_model():
         _kw_model = KeyBERT()
     return _kw_model
 
-def extract_insights(text, top_n=10):
+from .qa import ask_llm
+
+def extract_insights(data):
     """
-    Extract semantic keywords and potentially other insights.
+    Extract semantic keywords and generates a high-level analysis.
+    Input: data dict (needs 'focus_text')
     """
+    text = data.get('focus_text', '')
     if not text:
-        return {"keywords": []}
+        return {"keywords": [], "analysis": "No text to analyze."}
         
-    kw_model = get_model()
+    # 1. KeyBERT (Keywords)
+    try:
+        kw_model = get_model()
+        keywords = kw_model.extract_keywords(text, keyphrase_ngram_range=(1, 2), stop_words='english', top_n=10)
+        tags = [k[0] for k in keywords]
+        scores = [k[1] for k in keywords]
+    except Exception as e:
+        print(f"KeyBERT failed: {e}")
+        tags = []
+        scores = []
     
-    # KeyBERT extraction
-    # keyphrase_ngram_range=(1, 2) allows bigrams like "Deep Learning"
-    keywords = kw_model.extract_keywords(text, keyphrase_ngram_range=(1, 2), stop_words='english', top_n=top_n)
+    # 2. LLM / QA Analysis (The "Insight")
+    # We ask a generative question to getting a summarized insight.
+    # Note: If Ollama is offline, ask_llm falls back to DistilBERT which extracts spans.
+    # We phrase the question such that a span answer (like a sentence from the abstract) is still useful.
     
-    # Format: [('keyword', score), ...]
-    tags = [k[0] for k in keywords]
-    scores = [k[1] for k in keywords]
+    target_question = "What is the main contribution and key findings of this paper?"
+    
+    # We limit context to first 12k chars to be safe for smaller models/time
+    context_window = text[:12000]
+    
+    try:
+        analysis = ask_llm(target_question, context_window)
+    except Exception as e:
+        analysis = f"Could not generate insights: {e}"
     
     return {
         "keywords": tags,
-        "scores": scores
+        "scores": scores,
+        "analysis": analysis
     }

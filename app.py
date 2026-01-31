@@ -19,7 +19,7 @@ from src.models.qa import answer_question, ask_llm
 # Initialize DB
 init_db()
 
-st.set_page_config(page_title="Research Summarizer Premium", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Research Summarizer Premium", layout="wide", initial_sidebar_state="collapsed")
 
 # --- Custom CSS for Premium Feel ---
 st.markdown("""
@@ -75,30 +75,34 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- Header ---
+# --- Header & Settings ---
 col1, col2 = st.columns([3, 1])
 with col1:
     st.title("📄 Research Summarizer AI")
     st.markdown("#### *Transforming complexity into clarity.*")
 with col2:
-    st.image("https://img.icons8.com/color/96/000000/artificial-intelligence.png", width=80) 
+    col_img, col_settings = st.columns([3, 1])
+    with col_img:
+        st.image("https://img.icons8.com/color/96/000000/artificial-intelligence.png", width=80) 
+    with col_settings:
+        st.write("") # Spacer
+        with st.popover("⚙️", help="Settings"):
+            st.subheader("⚙️ Control Panel")
+            st.markdown("---")
+            method = st.selectbox("Summarization Model", ["Abstractive (Longformer/BART)", "Extractive (Key Sentences)"])
 
-# --- Sidebar ---
-st.sidebar.title("⚙️ Control Panel")
-st.sidebar.markdown("---")
-method = st.sidebar.selectbox("Summarization Model", ["Abstractive (Longformer/BART)", "Extractive (Key Sentences)"])
+            use_hybrid = False
+            model_name = None
 
-use_hybrid = False
-model_name = None
+            if "Abstractive" in method:
+                model_name_default = "allenai/led-base-16384" 
+                model_name = st.text_input("HuggingFace Model ID", model_name_default, help="Use 'allenai/led-base-16384' for long papers.")
+                use_hybrid = st.checkbox("🚀 Enable Hybrid Mode", value=True, help="Speeds up processing by 50% using extractive filtering first.")
+            else:
+                model_name = None
 
-if "Abstractive" in method:
-    model_name_default = "allenai/led-base-16384" 
-    model_name = st.sidebar.text_input("HuggingFace Model ID", model_name_default, help="Use 'allenai/led-base-16384' for long papers.")
-    use_hybrid = st.sidebar.checkbox("🚀 Enable Hybrid Mode", value=True, help="Speeds up processing by 50% using extractive filtering first.")
-else:
-    model_name = None
-
-st.sidebar.markdown("---")
-st.sidebar.info("Tip: Hybrid Mode combines TF-IDF filtering with Longformer to process long papers faster without losing key context.")
+            st.markdown("---")
+            st.info("Tip: Hybrid Mode combines TF-IDF filtering with Longformer to process long papers faster without losing key context.")
 
 # --- Main Interface ---
 tabs = st.tabs(["📥 Ingest & Summarize", "💬 Chat with Paper", "🧠 Insights", "📊 Evaluation", "📤 Export", "📚 Library"])
@@ -159,8 +163,8 @@ with tabs[0]:
                 st.write("Preprocessing complete.")
                 
                 # Insights
-                st.write("Extracting Semantic Insights (KeyBERT)...")
-                st.session_state.insights = extract_insights(data['clean_text'])
+                st.write("Extracting Semantic Insights (KeyBERT + LLM)...")
+                st.session_state.insights = extract_insights(data)
                 
                 st.write(f"Generating Summary ({method})... Hybrid={use_hybrid}")
                 
@@ -197,6 +201,10 @@ with tabs[0]:
                 )
                 
                 status.update(label="Analysis Complete & Saved to Library!", state="complete", expanded=False)
+                
+                # Push Summary to Chat History too (so it appears in Tab 1)
+                st.session_state.chat_history = [] # Clear old chat
+                st.session_state.chat_history.append({"role": "assistant", "content": f"**Summary of {data.get('title')}**:\n\n{summary_text}"})
                 
             except Exception as e:
                 st.error(f"An error occurred: {e}")
@@ -247,7 +255,8 @@ with tabs[1]:
             with st.chat_message("assistant"):
                 with st.spinner("Thinking..."):
                     context = answer_question(prompt, st.session_state.data['clean_text'])
-                    response = ask_llm(prompt, context)
+                    # Pass history excluding the message we just added (the current prompt)
+                    response = ask_llm(prompt, context, history=st.session_state.chat_history[:-1])
                     st.markdown(response)
                     st.session_state.chat_history.append({"role": "assistant", "content": response})
                     
@@ -260,27 +269,8 @@ with tabs[2]:
     st.header("🧠 Paper Insights")
     
     if st.session_state.insights:
-        st.subheader("Semantic Keywords")
-        keywords = st.session_state.insights.get('keywords', [])
+        st.info(st.session_state.insights.get('analysis', 'No detailed analysis available.'))
         
-        # HTML for tags
-        tags_html = "".join([f'<span class="tag">{k}</span>' for k in keywords])
-        st.markdown(f'<div class="tag-container">{tags_html}</div>', unsafe_allow_html=True)
-        
-        st.markdown("### Structure Analysis")
-        if st.session_state.data and 'sections' in st.session_state.data:
-            sections = st.session_state.data['sections'].keys()
-            st.write("Identified Sections:")
-            st.json(list(sections))
-            
-        st.markdown("### Semantic Importance")
-        import pandas as pd
-        scores = st.session_state.insights.get('scores', [])
-        if keywords and scores:
-            chart_data = pd.DataFrame({"Importance": scores}, index=keywords)
-            st.bar_chart(chart_data)
-        else:
-            st.caption("Detailed scores not available for this paper.")
     else:
         st.info("Process a paper to view insights.")
 
@@ -300,8 +290,13 @@ with tabs[3]:
 
     with col_m2:
         st.markdown("### 🏆 ROUGE Evaluation")
-        st.caption("Provide a reference summary (gold standard) to calculate accuracy scores.")
-        reference = st.text_area("Reference Summary", height=150, placeholder="Paste a human-written summary here to compare...")
+        
+        # Auto-fill reference with the paper's actual abstract if available
+        default_ref = ""
+        if st.session_state.data and st.session_state.data.get('abstract'):
+            default_ref = st.session_state.data['abstract']
+            
+        reference = st.text_area("Reference Summary (Default: Paper Abstract)", value=default_ref, height=200, placeholder="Paste a human-written summary here...")
         
         if st.button("Calculate ROUGE Score"):
             if reference and st.session_state.summary_text:
@@ -310,15 +305,15 @@ with tabs[3]:
                 # Display scores nicely
                 r1, r2, rl = st.columns(3)
                 with r1:
-                    st.metric("ROUGE-1 (F1)", scores['rouge1']['fmeasure'])
+                    st.metric("ROUGE-1 (F1)", round(scores['rouge1']['fmeasure'], 4))
                 with r2:
-                    st.metric("ROUGE-2 (F1)", scores['rouge2']['fmeasure'])
+                    st.metric("ROUGE-2 (F1)", round(scores['rouge2']['fmeasure'], 4))
                 with rl:
-                    st.metric("ROUGE-L (F1)", scores['rougeL']['fmeasure'])
+                    st.metric("ROUGE-L (F1)", round(scores['rougeL']['fmeasure'], 4))
                     
                 st.json(scores)
             else:
-                st.warning("Needs both a generated summary and a reference summary.")
+                st.warning("Needs both a generated summary and a reference summary (Abstract not found).")
 
 with tabs[4]:
     st.header("Export Report")
@@ -372,4 +367,3 @@ with tabs[5]:
                 if col_lib2.button("🗑️ Delete", key=f"del_{p['id']}"):
                     delete_paper(p['id'])
                     st.rerun()
-
