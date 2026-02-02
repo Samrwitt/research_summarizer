@@ -1,0 +1,56 @@
+{
+  "paper_id": "1706.03762",
+  "title": "Attention Is All You Need",
+  "timestamp": "2026-01-31T11:21:14.694845",
+  "reference_abstract": "The dominant sequence transduction models are based on complex recurrent or convolutional neural networks in an encoder-decoder configuration. The best performing models also connect the encoder and decoder through an attention mechanism. We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely. Experiments on two machine translation tasks show these models to be superior in quality while being more parallelizable and requiring significantly less time to train. Our model achieves 28.4 BLEU on the WMT 2014 English-to-German translation task, improving over the existing best results, including ensembles by over 2 BLEU. On the WMT 2014 English-to-French translation task, our model establishes a new single-model state-of-the-art BLEU score of 41.8 after training for 3.5 days on eight GPUs, a small fraction of the training costs of the best models from the literature. We show that the Transformer generalizes well to other tasks by applying it successfully to English constituency parsing both with large and limited training data.",
+  "models": {
+    "led-base": {
+      "config": {
+        "model_id": "allenai/led-base-16384",
+        "max_input_length": 16384,
+        "description": "Longformer Encoder-Decoder for long documents (production)",
+        "gpu_memory_gb": 6,
+        "speed": "slow",
+        "quality": "high",
+        "domain": "scientific (arXiv/PubMed)"
+      },
+      "summary": null,
+      "time_seconds": null,
+      "rouge_scores": null,
+      "success": false,
+      "error": "Failed to load abstractive model 'allenai/led-base-16384'. Possible offline mode without cache. Error: \"Unknown task summarization, available tasks are ['any-to-any', 'audio-classification', 'automatic-speech-recognition', 'depth-estimation', 'document-question-answering', 'feature-extraction', 'fill-mask', 'image-classification', 'image-feature-extraction', 'image-segmentation', 'image-text-to-text', 'image-to-image', 'keypoint-matching', 'mask-generation', 'ner', 'object-detection', 'question-answering', 'sentiment-analysis', 'table-question-answering', 'text-classification', 'text-generation', 'text-to-audio', 'text-to-speech', 'token-classification', 'video-classification', 'visual-question-answering', 'vqa', 'zero-shot-audio-classification', 'zero-shot-classification', 'zero-shot-image-classification', 'zero-shot-object-detection', 'translation_XX_to_YY']\""
+    },
+    "longt5-base": {
+      "config": {
+        "model_id": "google/long-t5-tglobal-base",
+        "max_input_length": 16384,
+        "description": "Google's Long-T5 with transient global attention",
+        "gpu_memory_gb": 5,
+        "speed": "medium",
+        "quality": "high",
+        "domain": "general"
+      },
+      "summary": null,
+      "time_seconds": null,
+      "rouge_scores": null,
+      "success": false,
+      "error": "Failed to load abstractive model 'google/long-t5-tglobal-base'. Possible offline mode without cache. Error: \"Unknown task summarization, available tasks are ['any-to-any', 'audio-classification', 'automatic-speech-recognition', 'depth-estimation', 'document-question-answering', 'feature-extraction', 'fill-mask', 'image-classification', 'image-feature-extraction', 'image-segmentation', 'image-text-to-text', 'image-to-image', 'keypoint-matching', 'mask-generation', 'ner', 'object-detection', 'question-answering', 'sentiment-analysis', 'table-question-answering', 'text-classification', 'text-generation', 'text-to-audio', 'text-to-speech', 'token-classification', 'video-classification', 'visual-question-answering', 'vqa', 'zero-shot-audio-classification', 'zero-shot-classification', 'zero-shot-image-classification', 'zero-shot-object-detection', 'translation_XX_to_YY']\""
+    },
+    "distilbart": {
+      "config": {
+        "model_id": "sshleifer/distilbart-cnn-12-6",
+        "max_input_length": 1024,
+        "description": "Distilled BART - fast but limited context",
+        "gpu_memory_gb": 2,
+        "speed": "fast",
+        "quality": "medium",
+        "domain": "news/general"
+      },
+      "summary": null,
+      "time_seconds": null,
+      "rouge_scores": null,
+      "success": false,
+      "error": "Failed to load abstractive model 'sshleifer/distilbart-cnn-12-6'. Possible offline mode without cache. Error: \"Unknown task summarization, available tasks are ['any-to-any', 'audio-classification', 'automatic-speech-recognition', 'depth-estimation', 'document-question-answering', 'feature-extraction', 'fill-mask', 'image-classification', 'image-feature-extraction', 'image-segmentation', 'image-text-to-text', 'image-to-image', 'keypoint-matching', 'mask-generation', 'ner', 'object-detection', 'question-answering', 'sentiment-analysis', 'table-question-answering', 'text-classification', 'text-generation', 'text-to-audio', 'text-to-speech', 'token-classification', 'video-classification', 'visual-question-answering', 'vqa', 'zero-shot-audio-classification', 'zero-shot-classification', 'zero-shot-image-classification', 'zero-shot-object-detection', 'translation_XX_to_YY']\""
+    }
+  }
+}
