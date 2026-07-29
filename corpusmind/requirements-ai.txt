@@ -16,10 +16,6 @@ sentence-transformers
 fastapi
 uvicorn[standard]
 python-multipart
-django
-djangorestframework
-django-cors-headers
 pdf2image
 pytesseract
 numpy
-gunicorn

@@ -70,6 +70,34 @@ npm run dev
 
 The frontend expects the Django API at `http://localhost:8000/api`. Override this with `VITE_API_URL` when needed.
 
+## Docker Setup
+
+Build and start the full application stack:
+
+```bash
+docker compose up --build
+```
+
+The same command is available through the included Makefile:
+
+```bash
+make up
+```
+
+The services are exposed as follows:
+
+- Frontend: `http://localhost:5173`
+- Django API: `http://localhost:8000/api`
+- FastAPI AI service: `http://localhost:8001`
+
+The Docker setup includes:
+
+- A FastAPI AI container with OCR system dependencies, including Tesseract and Poppler.
+- A Django API container that runs database migrations before starting Gunicorn.
+- A Vue production build served by Nginx, with `/api` proxied to the Django backend.
+- A persistent model cache volume for Hugging Face assets.
+- A persistent SQLite data volume for local Django data.
+
 ## API Overview
 
 Upload and analyze a document:

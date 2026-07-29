@@ -1,0 +1,55 @@
+services:
+  ai-service:
+    build:
+      context: .
+      dockerfile: ai_service/Dockerfile
+    container_name: corpusmind-ai
+    ports:
+      - "8001:8001"
+    environment:
+      TRANSFORMERS_CACHE: /models/transformers
+      HF_HOME: /models/huggingface
+    volumes:
+      - ai-model-cache:/models
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: corpusmind-backend
+    ports:
+      - "8000:8000"
+    environment:
+      AI_SERVICE_URL: http://ai-service:8001
+      DJANGO_DEBUG: "1"
+      DJANGO_ALLOWED_HOSTS: "*"
+      DJANGO_DB_PATH: /app/backend/data/db.sqlite3
+    volumes:
+      - backend-data:/app/backend/data
+    depends_on:
+      ai-service:
+        condition: service_healthy
+    command: >
+      sh -c "python manage.py migrate &&
+             gunicorn corpusmind_backend.wsgi:application --bind 0.0.0.0:8000 --workers 2 --timeout 240"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_API_URL: /api
+    container_name: corpusmind-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+volumes:
+  ai-model-cache:
+  backend-data:
