@@ -5,7 +5,6 @@ requests
 pdfplumber
 pypdf
 python-docx
-scikit-learn
 nltk
 regex
 rouge-score

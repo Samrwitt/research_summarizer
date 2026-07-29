@@ -16,7 +16,6 @@ RUN apt-get update \
 COPY requirements-ai.txt .
 RUN pip install -r requirements-ai.txt
 
-COPY src ./src
 COPY ai_service ./ai_service
 
 WORKDIR /app/ai_service

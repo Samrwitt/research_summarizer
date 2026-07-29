@@ -11,6 +11,11 @@ export async function uploadDocument(file) {
   return data
 }
 
+export async function getIntelligenceStatus() {
+  const { data } = await api.get('/intelligence/status/')
+  return data
+}
+
 export async function askDocument(documentId, question) {
   const { data } = await api.post(`/documents/${documentId}/ask/`, { question, top_k: 8 })
   return data

@@ -11,7 +11,7 @@ The project is designed to demonstrate production-oriented software engineering 
 - `backend/`: Django and Django REST Framework API for document orchestration, persistence, and client-facing endpoints.
 - `ai_service/`: FastAPI service for AI workloads, including parsing, OCR, summarization, retrieval, and answer synthesis.
 - `frontend/`: Vue 3 application built with Vite for document upload, analysis review, and grounded question answering.
-- `src/`: Existing NLP modules retained for ingestion, preprocessing, summarization, insights, evaluation, and export support.
+- `ai_service/nlp/`: Reusable NLP modules for preprocessing, summarization, insights, evaluation, and export support.
 
 ## Core Features
 
@@ -19,7 +19,7 @@ The project is designed to demonstrate production-oriented software engineering 
 - Table extraction from PDFs through `pdfplumber`.
 - OCR support for scanned pages and embedded visual content through `pdf2image` and `pytesseract`.
 - Hybrid summarization that combines extractive filtering with abstractive generation.
-- Advanced RAG pipeline with TF-IDF retrieval, BM25-style scoring, optional sentence-transformer semantic retrieval, and Maximal Marginal Relevance diversification.
+- Advanced RAG pipeline with BERT sentence embeddings, BM25-style lexical grounding, modality-aware ranking, and Maximal Marginal Relevance diversification.
 - Evidence-grounded question answering with citations to pages, tables, and OCR blocks.
 - Keyword and insight extraction through KeyBERT when available.
 - Django REST API for upload, document listing, and question answering.
@@ -28,7 +28,7 @@ The project is designed to demonstrate production-oriented software engineering 
 ## Technology Stack
 
 - Backend: Django, Django REST Framework, SQLite for local development.
-- AI service: FastAPI, scikit-learn, Hugging Face Transformers, sentence-transformers, pdfplumber, pytesseract.
+- AI service: FastAPI, Hugging Face Transformers, sentence-transformers, pdfplumber, pytesseract.
 - Frontend: Vue 3, Vite, Axios, lucide-vue-next.
 
 ## Local Setup

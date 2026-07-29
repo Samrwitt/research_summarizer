@@ -11,15 +11,15 @@ from app.ingestion import ingest_upload
 from app.rag import AdvancedRAGPipeline
 from app.schemas import AnalyzeResponse, AskRequest, AskResponse
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.append(str(PROJECT_ROOT))
+AI_ROOT = Path(__file__).resolve().parents[1]
+if str(AI_ROOT) not in sys.path:
+    sys.path.append(str(AI_ROOT))
 
 try:
-    from src.analysis import extract_insights
-    from src.hybrid import summarize_hybrid
-    from src.postprocess import generate_bullet_points
-    from src.preprocess import preprocess
+    from nlp.analysis import extract_insights
+    from nlp.hybrid import summarize_hybrid
+    from nlp.postprocess import generate_bullet_points
+    from nlp.preprocess import preprocess
 except Exception:
     extract_insights = None
     summarize_hybrid = None

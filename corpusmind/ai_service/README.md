@@ -5,7 +5,7 @@ The AI service is a FastAPI application responsible for multimodal document unde
 ## Responsibilities
 
 - Extract text, tables, and OCR text from uploaded research documents.
-- Build a hybrid retrieval index using TF-IDF, BM25-style lexical scoring, optional sentence-transformer embeddings, and MMR diversification.
+- Build a BERT embedding retrieval index with BM25-style lexical grounding, modality-aware ranking, and MMR diversification.
 - Generate summaries and evidence-grounded answers with citations.
 
 ## Run

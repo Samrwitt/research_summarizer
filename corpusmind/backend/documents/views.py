@@ -15,6 +15,30 @@ class DocumentListView(APIView):
         return Response(ResearchDocumentSerializer(documents, many=True).data)
 
 
+class IntelligenceStatusView(APIView):
+    def get(self, request):
+        try:
+            ai_response = requests.get(f"{settings.AI_SERVICE_URL}/health", timeout=5)
+            ai_status = ai_response.json() if ai_response.ok else {"status": "unavailable"}
+        except requests.RequestException:
+            ai_status = {"status": "unavailable"}
+
+        return Response(
+            {
+                "backend": "ok",
+                "ai_service": ai_status,
+                "capabilities": [
+                    "document_upload_orchestration",
+                    "bert_retrieval",
+                    "ocr_ingestion",
+                    "table_extraction",
+                    "grounded_question_answering",
+                    "citation_ranking",
+                ],
+            }
+        )
+
+
 class UploadDocumentView(APIView):
     parser_classes = [MultiPartParser]
 
@@ -23,11 +47,17 @@ class UploadDocumentView(APIView):
         if not upload:
             return Response({"detail": "A file upload is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        response = requests.post(
-            f"{settings.AI_SERVICE_URL}/analyze",
-            files={"file": (upload.name, upload.read(), upload.content_type)},
-            timeout=240,
-        )
+        try:
+            response = requests.post(
+                f"{settings.AI_SERVICE_URL}/analyze",
+                files={"file": (upload.name, upload.read(), upload.content_type)},
+                timeout=240,
+            )
+        except requests.RequestException as exc:
+            return Response(
+                {"detail": "AI service is unavailable.", "error": str(exc)},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
         if response.status_code >= 400:
             return Response(response.json(), status=response.status_code)
 
@@ -53,9 +83,18 @@ class UploadDocumentView(APIView):
 
 class AskDocumentView(APIView):
     def post(self, request, ai_document_id: str):
-        response = requests.post(
-            f"{settings.AI_SERVICE_URL}/documents/{ai_document_id}/ask",
-            json={"question": request.data.get("question", ""), "top_k": request.data.get("top_k", 8)},
-            timeout=120,
-        )
+        question = request.data.get("question", "").strip()
+        if not question:
+            return Response({"detail": "A question is required."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            response = requests.post(
+                f"{settings.AI_SERVICE_URL}/documents/{ai_document_id}/ask",
+                json={"question": question, "top_k": request.data.get("top_k", 8)},
+                timeout=120,
+            )
+        except requests.RequestException as exc:
+            return Response(
+                {"detail": "AI service is unavailable.", "error": str(exc)},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
         return Response(response.json(), status=response.status_code)

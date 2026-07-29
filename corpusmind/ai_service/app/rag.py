@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
-from sklearn.feature_extraction.text import TfidfVectorizer
 
 
 @dataclass
@@ -23,19 +22,18 @@ class AdvancedRAGPipeline:
     def __init__(self, embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2") -> None:
         self.embedding_model_name = embedding_model
         self.embedding_model = None
-        self.vectorizer: TfidfVectorizer | None = None
         self.chunks: list[Chunk] = []
-        self.matrix: Any = None
+        self.embeddings: np.ndarray | None = None
 
     def build(self, document: Any) -> dict[str, Any]:
         self.chunks = _make_chunks(document)
         texts = [chunk.text for chunk in self.chunks]
-        self.vectorizer = TfidfVectorizer(stop_words="english", ngram_range=(1, 2), max_features=50000)
-        self.matrix = self.vectorizer.fit_transform(texts) if texts else None
         self._load_embedding_model()
+        self.embeddings = self._encode(texts) if texts else None
         return {
             "chunk_count": len(self.chunks),
-            "embedding_model": self.embedding_model_name if self.embedding_model else "tfidf-fallback",
+            "retrieval": "bert-dense-plus-bm25",
+            "embedding_model": self.embedding_model_name if self.embedding_model else "deterministic-embedding-fallback",
             "modalities": {
                 "text_pages": len(document.pages),
                 "tables": len(document.tables),
@@ -44,14 +42,15 @@ class AdvancedRAGPipeline:
         }
 
     def retrieve(self, query: str, top_k: int = 8) -> list[dict[str, Any]]:
-        if not self.chunks or self.matrix is None or self.vectorizer is None:
+        if not self.chunks or self.embeddings is None:
             return []
-        tfidf_scores = np.asarray((self.matrix @ self.vectorizer.transform([query]).T).todense()).ravel()
+        query_vector = self._encode([query])[0]
+        bert_scores = self.embeddings @ query_vector
         bm25_scores = _bm25(query, self.chunks)
-        semantic_scores = self._semantic_scores(query)
-        fused = _normalize(tfidf_scores) * 0.30 + _normalize(bm25_scores) * 0.35 + _normalize(semantic_scores) * 0.35
+        modality_scores = _modality_boost(query, self.chunks)
+        fused = _normalize(bert_scores) * 0.72 + _normalize(bm25_scores) * 0.20 + modality_scores * 0.08
         candidates = sorted(range(len(self.chunks)), key=lambda idx: fused[idx], reverse=True)[: max(top_k * 4, top_k)]
-        selected = _mmr(candidates, fused, self.matrix, top_k=top_k)
+        selected = _mmr(candidates, fused, self.embeddings, top_k=top_k)
         return [
             {
                 "id": self.chunks[idx].id,
@@ -87,16 +86,45 @@ class AdvancedRAGPipeline:
         except Exception:
             self.embedding_model = None
 
-    def _semantic_scores(self, query: str) -> np.ndarray:
-        if not self.embedding_model or not self.chunks:
-            return np.zeros(len(self.chunks))
-        try:
-            texts = [chunk.text for chunk in self.chunks]
-            vectors = self.embedding_model.encode(texts, normalize_embeddings=True)
-            query_vector = self.embedding_model.encode([query], normalize_embeddings=True)[0]
-            return np.asarray(vectors @ query_vector)
-        except Exception:
-            return np.zeros(len(self.chunks))
+    def _encode(self, texts: list[str]) -> np.ndarray:
+        if not texts:
+            return np.empty((0, 384), dtype=float)
+        if self.embedding_model:
+            try:
+                return np.asarray(self.embedding_model.encode(texts, normalize_embeddings=True), dtype=float)
+            except Exception:
+                pass
+        vectors = np.asarray([_deterministic_embedding(text) for text in texts], dtype=float)
+        norms = np.linalg.norm(vectors, axis=1, keepdims=True)
+        return vectors / np.maximum(norms, 1e-9)
+
+
+def _deterministic_embedding(text: str, dimensions: int = 384) -> np.ndarray:
+    vector = np.zeros(dimensions, dtype=float)
+    terms = _terms(text)
+    if not terms:
+        return vector
+    for term in terms:
+        digest = hashlib.sha256(term.encode()).digest()
+        index = int.from_bytes(digest[:4], "big") % dimensions
+        sign = 1 if digest[4] % 2 == 0 else -1
+        vector[index] += sign * (1 + math.log1p(len(term)))
+    return vector
+
+
+def _modality_boost(query: str, chunks: list[Chunk]) -> np.ndarray:
+    query_terms = set(_terms(query))
+    boosts = []
+    for chunk in chunks:
+        boost = 0.0
+        if {"table", "row", "column", "value", "metric", "result"} & query_terms and chunk.source_type == "table":
+            boost += 1.0
+        if {"image", "figure", "diagram", "chart", "scan", "visual"} & query_terms and chunk.source_type == "image_ocr":
+            boost += 1.0
+        if chunk.source_type == "page":
+            boost += 0.25
+        boosts.append(boost)
+    return _normalize(np.asarray(boosts, dtype=float))
 
 
 def _make_chunks(document: Any, chunk_words: int = 220, overlap: int = 45) -> list[Chunk]:
@@ -156,10 +184,10 @@ def _normalize(values: np.ndarray) -> np.ndarray:
     return (values - minimum) / (maximum - minimum)
 
 
-def _mmr(candidates: list[int], scores: np.ndarray, matrix: Any, top_k: int, lambda_mult: float = 0.72) -> list[int]:
+def _mmr(candidates: list[int], scores: np.ndarray, embeddings: np.ndarray, top_k: int, lambda_mult: float = 0.72) -> list[int]:
     selected: list[int] = []
     remaining = candidates[:]
-    similarity = (matrix @ matrix.T).toarray()
+    similarity = embeddings @ embeddings.T
     while remaining and len(selected) < top_k:
         if not selected:
             choice = remaining.pop(0)
