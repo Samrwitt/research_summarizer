@@ -1,0 +1,1 @@
+"""CorpusMind Django project."""
