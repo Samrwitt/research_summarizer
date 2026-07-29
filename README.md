@@ -2,10 +2,6 @@
 
 ResearchGuide is research intelligence platform for analyzing academic papers, technical reports, and document collections. It combines a Django application backend, a FastAPI AI service, and a Vue frontend to support multimodal document ingestion, advanced retrieval-augmented generation, and evidence-grounded summaries.
 
-## Purpose
-
-The project is designed to demonstrate production-oriented software engineering and applied AI architecture. It moves beyond basic summarization by reading document text, tables, and OCR-derived image content, then indexing the material for question answering with citations.
-
 ## Architecture
 
 - `backend/`: Django and Django REST Framework API for document orchestration, persistence, and client-facing endpoints.
