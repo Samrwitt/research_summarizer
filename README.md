@@ -94,26 +94,6 @@ The Docker setup includes:
 - A persistent model cache volume for Hugging Face assets.
 - A persistent SQLite data volume for local Django data.
 
-## API Overview
-
-Upload and analyze a document:
-
-```bash
-POST /api/documents/upload/
-```
-
-Ask a question about an indexed document:
-
-```bash
-POST /api/documents/{ai_document_id}/ask/
-```
-
-List recent documents:
-
-```bash
-GET /api/documents/
-```
-
 ## Notes
 
 Large local models may require significant memory and initial download time. The AI service includes fallback paths so document parsing, indexing, and basic summarization can still operate when transformer models are unavailable.
